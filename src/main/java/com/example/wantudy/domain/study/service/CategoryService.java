@@ -45,27 +45,23 @@ public class CategoryService {
     public void saveCategory(List<String> categories, Study study, String parentCategory){
 
         Category parent = categoryRepository.findByCategoryName(parentCategory);
+        StudyCategory existedParent = studyCategoryRepository.findByCategoryAndStudy(parent,study);
 
-        StudyCategory existedCategoryParent = studyCategoryRepository.findByCategoryAndStudy(parent, study);
-
-        StudyCategory studyCategoryParent = new StudyCategory();
-
-        //1차 카테고리 studyCategory에 저장 X면 한 번만 저장
-        if(existedCategoryParent == null){
-            studyCategoryParent.setStudy(study);
+        //부모카테고리는 단일 선택이니까 한 번만 studycategory에 저장
+        if(existedParent == null){
+            StudyCategory studyCategoryParent = new StudyCategory();
             studyCategoryParent.setCategory(parent);
+            studyCategoryParent.setStudy(study);
             studyCategoryRepository.save(studyCategoryParent);
         }
 
-        for (int i = 0; i < categories.size(); i++){
-            Optional<Category> existedCategory = Optional.ofNullable(categoryRepository.findByCategoryName(categories.get(i)));
+        for (String s : categories) {
+            Optional<Category> existedCategory = Optional.ofNullable(categoryRepository.findByCategoryName(s));
             StudyCategory studyCategory = new StudyCategory();
-
-            if(existedCategory.isPresent()) {
+            if (existedCategory.isPresent()) {
                 studyCategory.setCategory(existedCategory.get());
-            }
-            else {
-                Category category= new Category(categories.get(i));
+            } else {
+                Category category = new Category(s);
                 categoryRepository.save(category);
 
                 category.setParent(parent);

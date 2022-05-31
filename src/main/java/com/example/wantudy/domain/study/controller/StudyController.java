@@ -9,6 +9,7 @@ import com.example.wantudy.infra.file.AwsS3Service;
 import com.example.wantudy.domain.study.service.CategoryService;
 import com.example.wantudy.domain.study.service.CommentService;
 import com.example.wantudy.domain.study.service.StudyService;
+import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -31,6 +32,7 @@ import java.util.Optional;
 
 import static org.springframework.data.domain.Sort.Direction.DESC;
 
+@Api(tags={"스터디 개설/조회 API"})
 @RestController
 @RequestMapping("/study")
 @RequiredArgsConstructor
@@ -40,41 +42,6 @@ public class StudyController {
     private final AwsS3Service s3Service;
     private final CategoryService categoryService;
     private final CommentService commentService;
-
-//    @ApiOperation("스터디 전체 조회")
-//    @GetMapping("")
-//    public EntityResponseDto getAllStudy(@PageableDefault(size=5, sort = "createAt", direction = Sort.Direction.DESC) Pageable pageable){
-//
-//        Specification<Study> spec = (root, query, criteriaBuilder) -> null;
-//
-//        StudyStatus status = StudyStatus.RECRUIT;
-//        spec = spec.and(StudySpec.equalStatus(status));
-//
-////        Page<StudyAllResponseDto> responseData = studyService.getAllStudy(pageable);
-//
-//        //모집중인 스터디만 뜨기
-//        Page<StudyAllResponseDto> responseData = studyService.getStudySearch(spec, pageable);
-//        if(!CollectionUtils.isEmpty(responseData.getContent()))
-//            return new EntityResponseDto(200, "스터디 조회 성공(모집중인 스터디만 조회)", responseData);
-//
-//        return new EntityResponseDto(404, "페이지가 없습니다.", null);
-//    }
-
-//    @GetMapping("/tt")
-//    public EntityResponseDto category(@RequestParam(required = false, name="category") List<String> category,
-//                                      @PageableDefault(size=5, sort="createAt", direction = DESC) Pageable pageable){
-//
-//        System.out.println(category);
-//
-//        List<StudyAllResponseDto> studies = studyService.getStudy(pageable, category);
-//
-//        return new EntityResponseDto(200, "카테고리별 조회", studies);
-//    }
-
-//    @GetMapping("/category")
-//    public List<CategoryDto> test(){
-//        return categoryService.getV1();
-//    }
 
     @ApiOperation(value = "스터디 조회(전체 + 필터링)", notes = "스터디 전체 조회 + 필터링 조회 엔드 포인트, " +
             "정렬 컬럼 : createAt, remainNum, likeNum, deadline" + "정렬 기준 : desc,asc")
@@ -152,7 +119,6 @@ public class StudyController {
             String category = studyCreateDto.getCategories().get(i);
             List<String> categories = List.of(category);
             studyService.saveStudy(study);
-//            studyService.saveCategory(categories, study);
 
             //부모 카테고리 있는지 찾음
             Category parent = categoryService.findParent(studyCreateDto.getParentCategory());
@@ -182,41 +148,6 @@ public class StudyController {
 
         return new EntityResponseDto.getStudyOneResponseDto(201, "스터디 등록", studyDetailResponseDto);
     }
-
-//    @ApiOperation("스터디 조회(전체 조회, 검색 필터)")
-//    @GetMapping("")
-//    public EntityResponseDto getStudyBySearch(@RequestParam(required = false) String studyName, @RequestParam(required = false) String location,
-//                                            @RequestParam(required = false, name = "status") StudyStatus status,
-//                                          @PageableDefault(size=5, sort="createAt", direction = DESC) Pageable pageable){
-//
-//        Specification<Study> spec = (root, query, criteriaBuilder) -> null;
-//
-//        if(studyName != null){
-//            spec = spec.and(StudySpec.likeStudyName(studyName));
-//        }
-//        if(location != null){
-//            spec = spec.and(StudySpec.likeLocation(location));
-//        }
-//        if(status != null){
-//            spec = spec.and(StudySpec.equalStatus(status));
-//        }
-//
-//        Page<StudyAllResponseDto> responseData = studyService.getStudySearch(spec, pageable);
-//
-//        if(!CollectionUtils.isEmpty(responseData.getContent()))
-//            return new EntityResponseDto(200, "스터디 조건 조회 성공", responseData);
-//
-//        return new EntityResponseDto(404, "검색 결과가 없습니다.", null);
-//    }
-
-//    @ApiOperation("스터디 조회(카테고리 필터)")
-//    @GetMapping("/category")
-//    public EntityResponseDto getStudyByCategory(@RequestParam String category, @PageableDefault(size=5, sort="createAt", direction = DESC) Pageable pageable){
-//        Page<StudyAllResponseDto> responseData = studyService.getStudyByCategory(category, pageable);
-//        if(!CollectionUtils.isEmpty(responseData.getContent()))
-//            return new EntityResponseDto(200, "스터디 조건 조회 성공", responseData);
-//        return new EntityResponseDto(404, "검색 결과가 없습니다.", null);
-//    }
 
     @ApiOperation("스터디 상세 조회")
     @GetMapping("/{studyId}")
@@ -256,7 +187,14 @@ public class StudyController {
         Study study = studyService.findByStudyId(studyId);
 
         if(!categories.isEmpty()){
+            //studycategory db에서 매칭된 category들 삭제
             studyService.deleteCategories(studyId);
+
+            //부모 카테고리 db에 있는지 찾음
+            Category parent = categoryService.findParent(studyUpdateDto.getParentCategory());
+            //없으면 부모 저장
+            if(parent == null)
+                categoryService.saveParentCategory(studyUpdateDto.getParentCategory());
             categoryService.saveCategory(categories, study, studyUpdateDto.getParentCategory());
         }
         if(!requiredInfoList.isEmpty()){
